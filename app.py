@@ -205,3 +205,11 @@ if user_question:
     
     # Store current query as previous query for next comparison
     st.session_state.previous_query = sql_query
+
+    st.markdown("### Save an Alternate Query")
+    alternate_query = st.text_area("Enter your alternate SQL query:")
+    if st.button("Save Alternate Query", key="save_alternate_query"):
+        if save_query(user_question, alternate_query, True):
+            st.success("Alternate query saved with feedback=1!")
+        else:
+            st.error("Failed to save alternate query")
