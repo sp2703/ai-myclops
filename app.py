@@ -16,6 +16,12 @@ if 'current_question' not in st.session_state:
     st.session_state.current_question = None
 if 'feedback_given' not in st.session_state:
     st.session_state.feedback_given = False
+if 'improved_query_feedback_given' not in st.session_state:
+    st.session_state.improved_query_feedback_given = False
+if 'current_improved_query' not in st.session_state:
+    st.session_state.current_improved_query = None
+if 'saved_queries' not in st.session_state:
+    st.session_state.saved_queries = []
 
 # Database connection function - Move this to the top
 def get_database_connection():
@@ -44,6 +50,21 @@ if st.sidebar.checkbox("Test Database Connection", key='test_db_connection'):
         conn.close()
     except Exception as e:
         st.sidebar.error(f"Database connection failed: {str(e)}")
+
+def save_query(question, query, is_good):
+    try:
+        conn = get_database_connection()
+        cursor = conn.cursor()
+        
+        sql = "INSERT INTO query_feedback (question, sql_query, feedback) VALUES (%s, %s, %s)"
+        cursor.execute(sql, (question, query, 1 if is_good else 0))
+        
+        conn.commit()
+        conn.close()
+        return True
+    except Exception as e:
+        st.sidebar.error(f"Error saving query: {str(e)}")
+        return False
 
 def save_feedback(question, sql_query, is_good):
     st.sidebar.write("Debug: save_feedback called with:", {
@@ -97,8 +118,17 @@ st.title("SQL Query Assistant")
 user_question = st.text_input("Enter your business question:")
 
 if user_question:
-    # Get SQL query from LLM
-    sql_query = get_sql_query(user_question)
+    if st.session_state.current_query is None:
+        st.session_state.current_query = get_sql_query(user_question)
+    sql_query = st.session_state.current_query
+
+    # Reset feedback state when a new query is generated
+    if sql_query != st.session_state.get('current_query', None):
+        st.session_state.feedback_given = False
+        st.session_state.improved_query_feedback_given = False
+        if 'improved_query' in st.session_state:
+            del st.session_state.improved_query
+    
     st.session_state.current_query = sql_query
     st.session_state.current_question = user_question
     
@@ -106,105 +136,72 @@ if user_question:
     st.subheader("Generated SQL Query:")
     st.code(sql_query, language="sql")
     
-    # Execute button with unique key
-    if st.button("Execute Query", key='execute_main_query'):
-        try:
-            conn = get_database_connection()
-            df = pd.read_sql_query(sql_query, conn)
-            conn.close()
-            
-            # Display results
-            st.subheader("Query Results:")
-            st.dataframe(df)
-            
-            if not df.empty and len(df.columns) >= 2:
-                st.bar_chart(df)
+    col1, col2 = st.columns(2)
+    with col1:
+        if st.button("Execute Original Query", key='execute_main_query'):
+            try:
+                conn = get_database_connection()
+                df = pd.read_sql_query(sql_query, conn)
+                conn.close()
                 
-        except Exception as e:
-            error_msg = str(e)
-            st.error(f"Error executing query: {error_msg}")
-            st.session_state.last_error = error_msg
+                # Display results
+                st.subheader("Query Results:")
+                st.dataframe(df)
+                
+                if not df.empty and len(df.columns) >= 2:
+                    st.bar_chart(df)
+                    
+            except Exception as e:
+                error_msg = str(e)
+                st.error(f"Error executing query: {error_msg}")
+                st.session_state.last_error = error_msg
 
-    # Move feedback section outside the execute button block
-    if st.session_state.current_query and not st.session_state.feedback_given:
-        st.markdown("---")
-        st.subheader("Was this response helpful?")
-        
-        # Debug information
-        st.sidebar.write("Debug: Current state:", {
-            "current_query": st.session_state.current_query[:50] + "...",
-            "current_question": st.session_state.current_question,
-            "feedback_given": st.session_state.feedback_given
-        })
-        
-        col1, col2 = st.columns(2)
-        
-        with col1:
-            if st.button("👍 Yes, it was helpful", key="feedback_good"):
-                st.write("⏳ Saving feedback...")
-                success = save_feedback(
-                    st.session_state.current_question,
-                    st.session_state.current_query,
-                    True
-                )
-                if success:
-                    st.success("✅ Thank you for your positive feedback!")
-                    st.session_state.feedback_given = True
-                    st.rerun()  # Changed from experimental_rerun to rerun
-                else:
-                    st.error("❌ Failed to save feedback")
-        
-        with col2:
-            if st.button("👎 No, needs improvement", key="feedback_bad"):
-                st.write("⏳ Saving feedback...")
-                if save_feedback(st.session_state.current_question, st.session_state.current_query, False):
-                    st.info("Generating an improved response...")
-                    try:
-                        # Get the error message from session state if it exists
-                        error_msg = st.session_state.get('last_error', None)
-                        improved_query = get_improved_sql_query(st.session_state.current_question, st.session_state.current_query, error_msg)
-                        st.session_state.improved_query = improved_query
-                        st.session_state.feedback_given = True
-                        
-                        # Display improved query
-                        st.subheader("Improved SQL Query:")
-                        st.code(improved_query, language="sql")
-                        
-                        
-                        # Add execute button for improved query
-                        if st.button("Execute Improved Query", key='execute_improved_query'):
-                            try:
-                                conn = get_database_connection()
-                                df = pd.read_sql_query(improved_query, conn)
-                                conn.close()
-                                
-                                st.subheader("New Query Results:")
-                                st.dataframe(df)
-                                
-                                if not df.empty and len(df.columns) >= 2:
-                                    st.bar_chart(df)
-                                    
-                            except Exception as e:
-                                st.error(f"Error executing improved query: {str(e)}")
-                    except Exception as e:
-                        st.error(f"Error generating improved query: {str(e)}")
-                        st.session_state.feedback_given = True
+    with col2:
+        if st.button("🔄 Regenerate Query", key="regenerate_query"):
+            try:
+                error_msg = st.session_state.get('last_error', None)
+                improved_query = get_improved_sql_query(user_question, sql_query, error_msg)
+                st.session_state.current_query = improved_query
+                st.rerun()
+            except Exception as e:
+                st.error(f"Error regenerating query: {str(e)}")
 
-                        # Add execute button for improved query
-                        if st.button("Execute Improved Query", key='execute_improved_query'):
-                            try:
-                                conn = get_database_connection()
-                                df = pd.read_sql_query(improved_query, conn)
-                                conn.close()
-                                
-                                st.subheader("New Query Results:")
-                                st.dataframe(df)
-                                
-                                if not df.empty and len(df.columns) >= 2:
-                                    st.bar_chart(df)
-                                    
-                            except Exception as e:
-                                st.error(f"Error executing improved query: {str(e)}")
-                    except Exception as e:
-                        st.error(f"Error generating improved query: {str(e)}")
-                        st.session_state.feedback_given = True
+    # Replace the expander section with:
+    st.markdown("### Save Query")
+    col3, col4 = st.columns(2)
+    with col3:
+        if st.button("👍 Save as Good Query", key="save_good_query"):
+            if save_query(user_question, sql_query, True):
+                st.success("Query saved successfully as good!")
+            else:
+                st.error("Failed to save query")
+    with col4:
+        if st.button("👎 Save as Bad Query", key="save_bad_query"):
+            if save_query(user_question, sql_query, False):
+                st.success("Query saved successfully as bad!")
+            else:
+                st.error("Failed to save query")
+    
+    # Check if there's an improved query in the session state
+    if 'improved_query' in st.session_state:
+        st.subheader("Improved SQL Query:")
+        st.code(st.session_state.improved_query, language="sql")
+        st.session_state.current_improved_query = st.session_state.improved_query
+        
+        if st.button("Execute Improved Query", key='execute_improved_query_main'):
+            try:
+                conn = get_database_connection()
+                df = pd.read_sql_query(st.session_state.improved_query, conn)
+                conn.close()
+                
+                st.subheader("Improved Query Results:")
+                st.dataframe(df)
+                
+                if not df.empty and len(df.columns) >= 2:
+                    st.bar_chart(df)
+                
+            except Exception as e:
+                st.error(f"Error executing improved query: {str(e)}")
+    
+    # Store current query as previous query for next comparison
+    st.session_state.previous_query = sql_query

@@ -11,12 +11,12 @@ llm = ChatOpenAI(
     max_retries=2,
 )
 
-def get_sql_query(question):
-    schema = """You are an SQL expert, this is the schema of all the tables of the models of the application.
+# Move schema to module level
+SCHEMA = """You are an SQL expert, this is the schema of all the tables of the models of the application.
 
-    Schema:
-    Table: sessions
-    Context: This stores the session of each users, sessions are unqiue but users can have multiple sessions.
+Schema:
+Table: sessions
+Context: This stores the session of each users, sessions are unqiue but users can have multiple sessions.
 - id (UUID, primary key)
 - trackingId (string, not null)
 - entryPage (string, not null)
@@ -147,9 +147,10 @@ Common Fields:
 - Most tables include timestamp field for event timing
 - User-related actions include userId
 - Product-related actions include product details and pricing"""
-    
+
+def get_sql_query(question):
     messages = [
-        ("system", f"You are an SQL expert. Generate ONLY the SQL query without any text or 'SQL:' prefix. {schema}"),
+        ("system", f"You are an SQL expert. Generate ONLY the SQL query without any text or 'SQL:' prefix. {SCHEMA}"),
         ("human", question)
     ]
     
@@ -172,7 +173,7 @@ def get_improved_sql_query(question, original_query, error_message=None):
         Original query: {original_query}{error_context}
         Please generate an improved SQL query that might better answer their question and avoid the previous error if any.
         Generate ONLY the SQL query without any text or 'SQL:' prefix.
-        {schema}"""),
+        {SCHEMA}"""),
         ("human", "Please generate an improved version of this SQL query.")
     ]
     
