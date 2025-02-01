@@ -15,126 +15,152 @@ llm = ChatOpenAI(
 SCHEMA = """You are an SQL expert, this is the schema of all the tables of the models of the application.
 
 Schema:
-Table: sessions
-Context: This stores the session of each users, sessions are unqiue but users can have multiple sessions.
-- id (UUID, primary key)
-- trackingId (string, not null)
-- entryPage (string, not null)
-- exitPage (string, nullable)
-- timeSpent (integer, not null, default: 0)
-- utm_source (string, nullable)
-- utm_medium (string, nullable)
-- utm_campaign_name (string, nullable)
-- utm_campaign_id (string, nullable)
-- utm_term (string, nullable)
-- utm_content (string, nullable)
-- os (string, nullable)
-- device (string, nullable)
-- browser (string, nullable)
-- longitude (float, nullable)
-- latitude (float, nullable)
-- city (string, nullable)
-- country (string, nullable)
-- createdAt (datetime)
-- updatedAt (datetime)
-Indexes: trackingId, createdAt
+**Contextual Meaning for Each Column in the Provided Tables**
 
-Table: signup
-Context: This stores the information of users who have signed up.
-- id (UUID, primary key)
-- sessionId (UUID, foreign key to sessions.id)
-- userId (string, not null)
-- timestamp (datetime, not null)
+### **Table: sessions**
+**Context:** Stores user session details, tracking website visits and user interactions.
 
-Table: search_bar
-Context: This stores the information of users who have used the search bar for products.
-- id (UUID, primary key)
-- sessionId (UUID, foreign key to sessions.id)
-- userId (string, not null)
-- searchTerm (string, not null)
-- timestamp (datetime, not null)
+| **Column Name** | **Contextual Meaning** |
+|---------------|--------------------|
+| `id` | Unique identifier for each user session. |
+| `trackingId` | Identifier to track a specific user across multiple sessions. |
+| `entryPage` | First page visited in the session. |
+| `exitPage` | Last page visited in the session. |
+| `timeSpent` | Total time spent in the session. |
+| `utm_source` | Source of the traffic (e.g., Google, Facebook). |
+| `utm_medium` | Marketing medium used (e.g., email, CPC, referral). |
+| `utm_campaign_name` | Name of the marketing campaign. |
+| `utm_campaign_id` | Unique identifier for the campaign. |
+| `utm_term` | Keyword used in paid campaigns. |
+| `utm_content` | Specific ad or link clicked by the user. |
+| `os` | Operating system of the user’s device. |
+| `device` | Type of device used (e.g., mobile, desktop). |
+| `browser` | Browser used to access the website. |
+| `longitude` | Geographic longitude of the user. |
+| `latitude` | Geographic latitude of the user. |
+| `city` | City from which the user accessed the website. |
+| `country` | Country of the user. |
+| `createdAt` | Time when the session started. |
+| `updatedAt` | Last updated timestamp of the session. |
 
-Table: proceed_to_payment
-Context: This stores the information of users who have proceeded to payment. this is the last step of a Product buying journey.
-- id (UUID, primary key)
-- sessionId (UUID, foreign key to sessions.id)
-- productIds (string array)
-- cartValue (float, not null)
-- currency (string, not null)
-- productName (string, not null)
-- userId (string, not null)
-- timestamp (datetime, not null)
-- createdAt (datetime)
-- updatedAt (datetime)
-Relationships: belongs to sessions
+### **Table: signup**
+**Context:** Stores information about users who have signed up.
 
-Table: proceed_to_checkout
-Context: This stores the information of users who have proceeded to checkout. this is the second to the last step of a Product buying journey.
-- id (UUID, primary key)
-- sessionId (UUID, foreign key to sessions.id)
-- productIds (comma-separated string, stored as array)
-- cartValue (float, not null)
-- currency (string, not null)
-- productName (string, not null)
-- userId (string, not null)
-- timestamp (datetime, not null)
+| **Column Name** | **Contextual Meaning** |
+|---------------|--------------------|
+| `id` | Unique identifier for each signup record. |
+| `sessionId` | Links the signup to a specific user session. |
+| `userId` | Identifier of the user who signed up. |
+| `timestamp` | Time when the user signed up. |
 
-Table: feature_products
-Context: This stores the information of products that are featured on the platform.
-- id (UUID, primary key)
-- sessionId (UUID, foreign key to sessions.id)
-- productId (string, not null)
-- productCost (float, not null)
-- currency (string, not null)
-- productName (string, not null)
-- userId (string, not null)
-- timestamp (datetime, not null)
+### **Table: search_bar**
+**Context:** Stores user searches performed on the website.
 
-Table: events
-Context: This stores the information of different events that happen on the platform.
-- id (UUID, primary key)
-- sessionId (UUID, foreign key to sessions.id)
-- eventName (string, not null)
-- eventType (string, not null)
-- additionalData (JSON, nullable)
-- timestamp (datetime, not null)
-- createdAt (datetime)
-- updatedAt (datetime)
-Indexes: sessionId, timestamp
-Relationships: belongs to sessions
+| **Column Name** | **Contextual Meaning** |
+|---------------|--------------------|
+| `id` | Unique identifier for each search event. |
+| `sessionId` | Links the search event to a user session. |
+| `userId` | Identifier of the user who performed the search. |
+| `searchTerm` | Search query entered by the user. |
+| `timestamp` | Time when the search was performed. |
 
-Table: conversions
-Context: This stores the information of conversions -- this is custom defined by the consumer, that happen on the platform.
-- id (UUID, primary key)
-- sessionId (UUID, foreign key to sessions.id)
-- conversionType (string, not null)
-- conversionValue (decimal(10,2), not null)
-- timestamp (datetime, not null)
-- createdAt (datetime)
-- updatedAt (datetime)
-Indexes: sessionId, timestamp
-Relationships: belongs to sessions
+### **Table: proceed_to_payment**
+**Context:** Logs the last step before purchase completion.
 
-Table: add_to_favourites
-Context: This stores the information of products who have been added to the favourites.
-- id (UUID, primary key)
-- sessionId (UUID, foreign key to sessions.id)
-- userId (string, not null)
-- pageUrl (string, not null)
-- productName (string, not null)
-- productId (string, not null)
-- timestamp (datetime, not null)
+| **Column Name** | **Contextual Meaning** |
+|---------------|--------------------|
+| `id` | Unique identifier for each payment attempt. |
+| `sessionId` | Links the action to a specific session. |
+| `productIds` | List of product IDs included in the purchase. |
+| `cartValue` | Total value of the cart at checkout. |
+| `currency` | Currency used for the transaction. |
+| `productName` | Name of the purchased product(s). |
+| `userId` | Identifier of the user who proceeded to payment. |
+| `timestamp` | Time when the user proceeded to payment. |
+| `createdAt` | Record creation timestamp. |
+| `updatedAt` | Last modification timestamp. |
 
-Table: add_to_cart
-Context: This stores the information of products who have been added to the cart, first step of the product buying journey.
-- id (UUID, primary key)
-- sessionId (UUID, foreign key to sessions.id)
-- productId (string, not null)
-- productCost (float, not null)
-- currency (string, not null)
-- productName (string, not null)
-- userId (string, not null)
-- timestamp (datetime, not null)
+### **Table: proceed_to_checkout**
+**Context:** Logs the step before proceeding to payment.
+
+| **Column Name** | **Contextual Meaning** |
+|---------------|--------------------|
+| `id` | Unique identifier for each checkout event. |
+| `sessionId` | Links the action to a specific session. |
+| `productIds` | List of product IDs being purchased. |
+| `cartValue` | Total value of the cart at checkout. |
+| `currency` | Currency used for the purchase. |
+| `productName` | Name of the product(s) in the cart. |
+| `userId` | Identifier of the user proceeding to checkout. |
+| `timestamp` | Time when the user proceeded to checkout. |
+
+### **Table: feature_products**
+**Context:** Stores details of products featured on the website.
+
+| **Column Name** | **Contextual Meaning** |
+|---------------|--------------------|
+| `id` | Unique identifier for each featured product record. |
+| `sessionId` | Links the product display event to a session. |
+| `productId` | Unique identifier for the featured product. |
+| `productCost` | Price of the featured product. |
+| `currency` | Currency in which the price is displayed. |
+| `productName` | Name of the featured product. |
+| `userId` | Identifier of the user viewing the featured product. |
+| `timestamp` | Time when the product was featured. |
+
+### **Table: events**
+**Context:** Logs user interactions and platform activities.
+
+| **Column Name** | **Contextual Meaning** |
+|---------------|--------------------|
+| `id` | Unique identifier for each event. |
+| `sessionId` | Links the event to a specific session. |
+| `eventName` | Name of the event (e.g., "Click", "Scroll"). |
+| `eventType` | Type of event (e.g., "Navigation", "UI Interaction"). |
+| `additionalData` | Metadata related to the event. |
+| `timestamp` | Time when the event occurred. |
+| `createdAt` | Record creation timestamp. |
+| `updatedAt` | Last modification timestamp. |
+
+### **Table: conversions**
+**Context:** Logs user-defined conversion events.
+
+| **Column Name** | **Contextual Meaning** |
+|---------------|--------------------|
+| `id` | Unique identifier for each conversion event. |
+| `sessionId` | Links the conversion to a specific session. |
+| `conversionType` | Type of conversion (e.g., "Purchase", "Lead"). |
+| `conversionValue` | Value associated with the conversion. |
+| `timestamp` | Time when the conversion occurred. |
+| `createdAt` | Record creation timestamp. |
+| `updatedAt` | Last modification timestamp. |
+
+### **Table: add_to_favourites**
+**Context:** Logs products added to user favorites.
+
+| **Column Name** | **Contextual Meaning** |
+|---------------|--------------------|
+| `id` | Unique identifier for each favorite action. |
+| `sessionId` | Links the action to a specific session. |
+| `userId` | Identifier of the user adding the favorite. |
+| `pageUrl` | URL of the page where the product was favorited. |
+| `productName` | Name of the favorited product. |
+| `productId` | Unique identifier of the favorited product. |
+| `timestamp` | Time when the product was favorited. |
+
+### **Table: add_to_cart**
+**Context:** Logs products added to the shopping cart.
+
+| **Column Name** | **Contextual Meaning** |
+|---------------|--------------------|
+| `id` | Unique identifier for each add-to-cart action. |
+| `sessionId` | Links the action to a specific session. |
+| `productId` | Unique identifier for the product. |
+| `productCost` | Price of the product at the time of addition. |
+| `currency` | Currency in which the price is displayed. |
+| `productName` | Name of the product added. |
+| `userId` | Identifier of the user adding the product. |
+| `timestamp` | Time when the product was added to cart. |
 
 Common Relationships:
 - All tables have a foreign key relationship with the sessions table through sessionId
@@ -146,7 +172,71 @@ Common Fields:
 - All tables use UUID as primary key
 - Most tables include timestamp field for event timing
 - User-related actions include userId
-- Product-related actions include product details and pricing"""
+- Product-related actions include product details and pricing
+
+Here’s an enhanced context description that will optimize the prompt for GPT models:
+
+---
+
+### **Application Schema & Context Overview**  
+
+This schema represents a **user interaction tracking system** that monitors various user activities throughout their journey on the platform. The system is designed to collect **session-based analytics**, tracking everything from initial engagement to purchase behavior.  
+
+#### **Core Concepts**  
+- **Session-Based Tracking:** Each user interaction is linked to a unique `sessionId` in the `sessions` table, making it the central reference point for tracking user journeys.  
+- **Event-Driven Architecture:** The schema captures **specific actions** like signing up, searching for products, adding items to cart, checking out, and making payments.  
+- **Marketing Attribution:** The schema stores UTM parameters for tracking traffic sources and campaign effectiveness.  
+- **Conversion Tracking:** Custom user-defined conversions are stored separately for better analytics.  
+- **Geolocation & Device Tracking:** The system collects OS, browser, device, and location data to enhance user experience and optimize marketing strategies.  
+
+---
+
+### **Table Relationships & Use Cases**  
+
+#### **1. `sessions` (Central Table)**
+- Stores core session details for each user, including tracking ID, entry/exit pages, time spent, geolocation, device info, and marketing campaign data.  
+- **Indexes:** `trackingId`, `createdAt` for efficient lookups and performance optimization.  
+
+#### **2. `signup` (User Registration Events)**
+- Tracks when users sign up, associating them with a session for attribution analysis.  
+
+#### **3. `search_bar` (Search Behavior)**
+- Captures user search queries and timestamps, allowing analysis of search trends and intent.  
+
+#### **4. `add_to_cart` (First Step in Buying Journey)**
+- Tracks product additions to the cart, storing product details, currency, and user information.  
+
+#### **5. `proceed_to_checkout` (Second to Last Step in Buying Journey)**
+- Captures users who proceed to checkout, storing cart value, product details, and currency.  
+
+#### **6. `proceed_to_payment` (Final Step Before Purchase)**
+- Logs checkout-to-payment transitions, including product details, total cart value, and user ID.  
+
+#### **7. `feature_products` (Promoted Product Tracking)**
+- Monitors featured products viewed by users, useful for A/B testing and recommendations.  
+
+#### **8. `add_to_favourites` (Wishlist Actions)**
+- Tracks products added to favorites for interest analysis and retargeting.  
+
+#### **9. `events` (General User Activity Tracking)**
+- Captures custom platform events, including event types and additional metadata in JSON format.  
+- **Indexes:** `sessionId`, `timestamp` for quick retrieval.  
+
+#### **10. `conversions` (User-Defined Conversion Tracking)**
+- Stores custom conversion events with assigned values, useful for marketing performance measurement.  
+- **Indexes:** `sessionId`, `timestamp` for efficient reporting.  
+
+---
+
+### **Common Schema Patterns**  
+- **Session-Based Relationships:** Almost all tables link to `sessions` via `sessionId`, making it the central tracking entity.  
+- **Timestamped Events:** Every action has a timestamp for chronological event tracking.  
+- **Product Information Consistency:** Product-related tables (`add_to_cart`, `proceed_to_checkout`, `proceed_to_payment`, `feature_products`) share a similar structure for uniformity.  
+- **Indexing for Performance:** Key tables include indexes on `sessionId`, `timestamp`, and `trackingId` for optimized queries.  
+
+This schema **enables comprehensive user journey tracking**, supporting analytics, conversion optimization, and personalized experiences.
+
+"""
 
 def get_sql_query(question):
     messages = [

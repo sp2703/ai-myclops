@@ -114,8 +114,31 @@ def save_feedback(question, sql_query, is_good):
 # Initialize Streamlit app
 st.title("SQL Query Assistant")
 
-# Create input text area for user question
-user_question = st.text_input("Enter your business question:")
+# Create input container with aligned elements
+input_container = st.container()
+input_col, clear_col = input_container.columns([4, 1])
+
+# Store the question in session state if not exists
+if 'user_question' not in st.session_state:
+    st.session_state.user_question = ''
+
+with input_col:
+    user_question = st.text_input("Enter your business question:", key='question_input', 
+                                value=st.session_state.user_question)
+    st.session_state.user_question = user_question
+
+with clear_col:
+    st.write("")
+    if st.button("Clear", key="clear_query", use_container_width=True):
+        keys_to_clear = [
+            'current_query', 'current_question', 'feedback_given',
+            'improved_query_feedback_given', 'current_improved_query',
+            'improved_query', 'last_error', 'user_question', 'question_input'
+        ]
+        for key in keys_to_clear:
+            if key in st.session_state:
+                del st.session_state[key]
+        st.rerun()
 
 if user_question:
     if st.session_state.current_query is None:
