@@ -7,3 +7,4 @@ streamlit
 langchain-openai
 pymysql
 pandas
+langchain_google_genai
