@@ -1,18 +1,29 @@
 from langchain_openai import ChatOpenAI
 from dotenv import load_dotenv
+from langchain_google_genai import ChatGoogleGenerativeAI
 
 # Load environment variables at startup
 load_dotenv()
-llm = ChatOpenAI(
-    model="gpt-4o-mini",
+
+llm = ChatGoogleGenerativeAI(
+    model="gemini-2.0-flash",
     temperature=0,
     max_tokens=None,
     timeout=None,
     max_retries=2,
+    # other params...
 )
 
+# llm = ChatOpenAI(
+#     model="gpt-4o-mini",
+#     temperature=0,
+#     max_tokens=None,
+#     timeout=None,
+#     max_retries=2,
+# )
+
 # Move schema to module level
-SCHEMA = """You are an SQL expert, this is the schema of all the tables of the models of the application.
+SCHEMA = """
 
 Schema:
 **Contextual Meaning for Each Column in the Provided Tables**
@@ -238,18 +249,46 @@ This schema **enables comprehensive user journey tracking**, supporting analytic
 
 """
 
-def get_sql_query(question):
+def enhance_question(question):
     messages = [
-        ("system", f"You are an SQL expert. Generate ONLY the SQL query without any text or 'SQL:' prefix. {SCHEMA}"),
+        ("system", """You are an expert at reformulating questions to be more precise and SQL-friendly. 
+        Enhance the given question to be more specific and detailed, while maintaining its core intent.
+        Return only the enhanced question without any additional text or explanations."""),
         ("human", question)
+    ]
+    try:
+        response = llm.invoke(messages)
+        return response.content.strip()
+    except Exception as e:
+        # If enhancement fails, return original question
+        return question
+
+def get_sql_query(question):
+    # First enhance the question
+    enhanced_question = enhance_question(question)
+    print("enhanced_question",enhanced_question)
+    messages = [
+        ("system", f"You are an SQL expert. Generate ONLY the SQL query that works for mysql dialect without using any fancy function, this sql query will be executed and the result will  be directly shown to a user so make the response insighful, or without any text or 'SQL:' prefix. {SCHEMA}"),
+        ("human", enhanced_question)
     ]
     
     try:
+        print("messages is", messages)
         response = llm.invoke(messages)
         # Clean and extract just the SQL query
         sql_query = response.content.strip()
+        
         if sql_query.upper().startswith('SQL:'):
             sql_query = sql_query[4:].strip()
+
+        print("sql_nmxbcmxz1", sql_query)
+        if sql_query.startswith('```sql'):
+            sql_query = sql_query[6:].strip()
+        if sql_query.startswith('```'):
+            sql_query = sql_query[3:].strip()
+        if sql_query.endswith('```'):
+            sql_query = sql_query[:-3].strip()
+        print("sql_nmxbcmxz2", sql_query)    
         return sql_query
     except Exception as e:
         raise Exception(f"Error generating SQL query: {str(e)}")
@@ -270,8 +309,21 @@ def get_improved_sql_query(question, original_query, error_message=None):
     try:
         response = llm.invoke(messages)
         sql_query = response.content.strip()
+        
+        # Remove any SQL: prefix
+        print("sql_nmxbcmxz0", sql_query)
         if sql_query.upper().startswith('SQL:'):
             sql_query = sql_query[4:].strip()
+            
+        # Handle code blocks
+        print("sql_nmxbcmxz1", sql_query)
+        if sql_query.startswith('```sql'):
+            sql_query = sql_query[6:].strip()
+        if sql_query.startswith('```'):
+            sql_query = sql_query[3:].strip()
+        if sql_query.endswith('```'):
+            sql_query = sql_query[:-3].strip()
+        print("sql_nmxbcmxz2", sql_query)    
         return sql_query
     except Exception as e:
         raise Exception(f"Error generating improved SQL query: {str(e)}")
